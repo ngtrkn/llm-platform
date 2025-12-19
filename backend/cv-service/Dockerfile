@@ -54,15 +54,30 @@ RUN python -c "import torch; print(f'PyTorch version: {torch.__version__}'); pri
 # Copy application code
 COPY . .
 
+# Copy model download script
+COPY download_models.py /app/download_models.py
+COPY entrypoint.sh /app/entrypoint.sh
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
+
 # Create directories for mounts
 RUN mkdir -p /app/config /app/models /app/datasets /app/results /app/strategies
+
+# Download default models during build (to /app/models which will be mounted)
+# This ensures models are available immediately when container starts
+# Models will be copied to volume on first startup if volume is empty
+RUN echo "Downloading default models during Docker build..." && \
+    python3 /app/download_models.py /app/models 2>&1 | tee /tmp/model_download.log && \
+    echo "Model download log saved" && \
+    ls -lh /app/models/*.pt 2>/dev/null | head -20 || echo "No models downloaded during build (will download on first use)"
 
 # Expose port
 EXPOSE 8001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8001/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" || exit 1
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Use entrypoint script to download models before starting service
+ENTRYPOINT ["/app/entrypoint.sh"]

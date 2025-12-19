@@ -13,6 +13,13 @@ import numpy as np
 from inference.detector import get_detector
 from training.trainer import ModelTrainer
 from config.cv_config import cv_config
+from ultralytics import YOLO
+import asyncio
+import logging
+import shutil
+import torch
+
+logger = logging.getLogger(__name__)
 
 
 def make_json_serializable(obj):
@@ -44,6 +51,212 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def get_default_models():
+    """Get list of default models"""
+    return [
+        "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+        "yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt",
+        "yoloe-11n.pt", "yoloe-11s.pt", "yoloe-11m.pt", "yoloe-11l.pt", "yoloe-11x.pt"
+    ]
+
+
+def pre_download_models():
+    """Pre-download default models, especially YOLOE models, and save to models directory"""
+    default_models = get_default_models()
+    models_dir = Path("/app/models")
+    models_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info("=" * 60)
+    logger.info("Starting pre-download of default models...")
+    logger.info(f"Models directory: {models_dir}")
+    logger.info(f"Default models to download: {default_models}")
+    logger.info("=" * 60)
+    
+    downloaded_count = 0
+    failed_count = 0
+    
+    for model_name in default_models:
+        try:
+            target_path = models_dir / model_name
+            
+            # Skip if already exists locally
+            if target_path.exists():
+                size_mb = target_path.stat().st_size / (1024 * 1024)
+                logger.info(f"✓ {model_name} already exists locally ({size_mb:.2f} MB)")
+                downloaded_count += 1
+                continue
+            
+            logger.info(f"\n--- Pre-downloading {model_name} ---")
+            
+            # Try to download the model - Ultralytics will download automatically
+            actual_model_name = model_name
+            model = None
+            
+            # For YOLOE models, try both naming conventions
+            if "yoloe-11" in model_name:
+                # Try dash version first
+                try:
+                    logger.info(f"Attempting to load: {model_name}")
+                    model = YOLO(model_name)
+                    logger.info(f"✓ Successfully loaded {model_name}")
+                except Exception as e1:
+                    logger.warning(f"Failed with {model_name}: {e1}")
+                    # Try alternative naming without dash
+                    alt_name = model_name.replace("yoloe-11", "yoloe11")
+                    logger.info(f"Trying alternative name: {alt_name}")
+                    try:
+                        model = YOLO(alt_name)
+                        actual_model_name = alt_name
+                        logger.info(f"✓ Successfully loaded {alt_name}")
+                    except Exception as e2:
+                        logger.error(f"Both naming conventions failed for {model_name}")
+                        logger.error(f"  - {model_name}: {e1}")
+                        logger.error(f"  - {alt_name}: {e2}")
+                        failed_count += 1
+                        continue
+            else:
+                try:
+                    model = YOLO(model_name)
+                    logger.info(f"✓ Successfully loaded {model_name}")
+                except Exception as e:
+                    logger.error(f"Failed to load {model_name}: {e}")
+                    failed_count += 1
+                    continue
+            
+            if model is None:
+                logger.warning(f"Could not initialize model {model_name}")
+                failed_count += 1
+                continue
+            
+            # Now find where Ultralytics saved the model file
+            saved = False
+            
+            # Method 1: Check the model's checkpoint path directly
+            try:
+                if hasattr(model, 'ckpt_path') and model.ckpt_path:
+                    ckpt = Path(model.ckpt_path)
+                    logger.info(f"Checking ckpt_path: {ckpt}")
+                    if ckpt.exists():
+                        shutil.copy2(ckpt, target_path)
+                        logger.info(f"✓ Copied from ckpt_path to {target_path}")
+                        saved = True
+            except Exception as e:
+                logger.debug(f"Error checking ckpt_path: {e}")
+            
+            # Method 2: Check Ultralytics cache directories with actual model name
+            if not saved:
+                cache_locations = [
+                    Path.home() / ".ultralytics" / "weights" / actual_model_name,
+                    Path.home() / ".ultralytics" / actual_model_name,
+                    Path.home() / ".cache" / "ultralytics" / actual_model_name,
+                    Path("/root/.ultralytics/weights") / actual_model_name if Path("/root").exists() else None,
+                    Path("/root/.ultralytics") / actual_model_name if Path("/root").exists() else None,
+                ]
+                
+                for cache_path in cache_locations:
+                    if cache_path and cache_path.exists():
+                        logger.info(f"Found model in cache: {cache_path}")
+                        shutil.copy2(cache_path, target_path)
+                        logger.info(f"✓ Copied {actual_model_name} to {target_path}")
+                        saved = True
+                        break
+            
+            # Method 3: Search recursively in Ultralytics directories
+            if not saved:
+                import os
+                search_dirs = [
+                    Path.home() / ".ultralytics",
+                    Path.home() / ".cache" / "ultralytics",
+                    Path("/root/.ultralytics") if Path("/root").exists() else None,
+                ]
+                
+                for search_dir in search_dirs:
+                    if search_dir and search_dir.exists():
+                        logger.info(f"Searching in: {search_dir}")
+                        try:
+                            for root, dirs, files in os.walk(search_dir):
+                                if actual_model_name in files:
+                                    source_file = Path(root) / actual_model_name
+                                    shutil.copy2(source_file, target_path)
+                                    logger.info(f"✓ Found and copied from {source_file} to {target_path}")
+                                    saved = True
+                                    break
+                            if saved:
+                                break
+                        except Exception as e:
+                            logger.debug(f"Error searching {search_dir}: {e}")
+            
+            # Method 4: Try to save model directly
+            if not saved:
+                try:
+                    if hasattr(model, 'model'):
+                        # Try to save the model
+                        torch.save(model.model, target_path)
+                        logger.info(f"✓ Saved model directly to {target_path}")
+                        saved = True
+                except Exception as e:
+                    logger.debug(f"Could not save model directly: {e}")
+            
+            if saved and target_path.exists():
+                size_mb = target_path.stat().st_size / (1024 * 1024)
+                logger.info(f"✓✓ {model_name} successfully saved ({size_mb:.2f} MB)")
+                downloaded_count += 1
+            else:
+                logger.warning(f"⚠ Could not save {model_name} to {target_path}")
+                logger.warning(f"  Model is downloaded but may be in Ultralytics cache only")
+                failed_count += 1
+                    
+        except Exception as e:
+            logger.error(f"✗ Failed to pre-download {model_name}: {str(e)}", exc_info=True)
+            failed_count += 1
+    
+    # Final summary
+    logger.info("\n" + "=" * 60)
+    logger.info("Model pre-download summary:")
+    logger.info(f"  Successfully downloaded: {downloaded_count}/{len(default_models)}")
+    logger.info(f"  Failed: {failed_count}/{len(default_models)}")
+    
+    # List all models in the directory
+    if models_dir.exists():
+        local_models = list(models_dir.glob("*.pt"))
+        logger.info(f"\nModels currently in {models_dir}:")
+        for m in local_models:
+            size_mb = m.stat().st_size / (1024 * 1024)
+            logger.info(f"  - {m.name} ({size_mb:.2f} MB)")
+        if not local_models:
+            logger.warning(f"  No models found in {models_dir}!")
+    else:
+        logger.error(f"Models directory {models_dir} does not exist!")
+    
+    logger.info("=" * 60)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Run on application startup"""
+    logger.info("CV Service starting up...")
+    # Models are already downloaded by entrypoint.sh before service starts
+    # But we can still run pre-download in background as a safety check
+    # This ensures any missing models are downloaded
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, pre_download_models)
+
+
+@app.post("/models/pre-download")
+async def trigger_pre_download():
+    """Manually trigger pre-download of default models"""
+    try:
+        # Run in background
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, pre_download_models)
+        return {
+            "status": "started",
+            "message": "Model pre-download started in background"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error starting pre-download: {str(e)}")
 
 
 @app.get("/health")
@@ -137,28 +350,71 @@ async def detect_batch(
 
 @app.get("/models")
 async def list_models():
-    """List available models"""
+    """List available models - always includes all default models"""
     models_dir = Path("/app/models")
     models = []
+    default_models = get_default_models()
+    seen_models = set()
     
-    # List custom models
-    if models_dir.exists():
-        for model_file in models_dir.glob("*.pt"):
-            models.append({
-                "name": model_file.name,
-                "path": str(model_file),
-                "type": "custom"
-            })
+    logger.info(f"Listing models from {models_dir}")
+    logger.info(f"Default models to include: {default_models}")
     
-    # Add default models
-    default_models = ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt"]
+    # First, ALWAYS add all default models (they should always be available)
     for model_name in default_models:
-        models.append({
+        model_path = models_dir / model_name
+        
+        # Check if model exists with original name
+        exists_locally = model_path.exists()
+        
+        # For YOLOE models, also check alternative naming
+        if not exists_locally and "yoloe-11" in model_name:
+            alt_name = model_name.replace("yoloe-11", "yoloe11")
+            alt_path = models_dir / alt_name
+            if alt_path.exists():
+                exists_locally = True
+                model_path = alt_path
+                logger.info(f"Found YOLOE model with alternative name: {alt_name}")
+        
+        # Always add default models to the list, even if not downloaded yet
+        model_info = {
             "name": model_name,
-            "path": model_name,
-            "type": "default"
-        })
+            "path": str(model_path) if exists_locally else model_name,
+            "type": "default",
+            "exists_locally": exists_locally
+        }
+        
+        if exists_locally:
+            try:
+                size_mb = model_path.stat().st_size / (1024 * 1024)
+                model_info["size_mb"] = round(size_mb, 2)
+            except:
+                pass
+        
+        models.append(model_info)
+        seen_models.add(model_name)
+        # Also mark alternative naming as seen
+        if "yoloe-11" in model_name:
+            seen_models.add(model_name.replace("yoloe-11", "yoloe11"))
     
+    # Then, add custom models (those not in default list)
+    if models_dir.exists():
+        local_files = list(models_dir.glob("*.pt"))
+        logger.info(f"Found {len(local_files)} model files in directory")
+        for model_file in local_files:
+            if model_file.name not in seen_models:
+                try:
+                    size_mb = model_file.stat().st_size / (1024 * 1024)
+                    models.append({
+                        "name": model_file.name,
+                        "path": str(model_file),
+                        "type": "custom",
+                        "exists_locally": True,
+                        "size_mb": round(size_mb, 2)
+                    })
+                except Exception as e:
+                    logger.warning(f"Error reading {model_file}: {e}")
+    
+    logger.info(f"Returning {len(models)} models total")
     return {"models": models}
 
 
@@ -171,6 +427,137 @@ async def get_model_info(model_name: str):
         return make_json_serializable(info)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting model info: {str(e)}")
+
+
+@app.post("/models/upload")
+async def upload_model(
+    file: UploadFile = File(...),
+    model_name: Optional[str] = Form(None)
+):
+    """Upload a custom model weight file"""
+    try:
+        models_dir = Path("/app/models")
+        models_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Use provided name or filename
+        filename = model_name or file.filename
+        if not filename:
+            raise HTTPException(status_code=400, detail="Model name or filename required")
+        
+        # Ensure .pt extension
+        if not filename.endswith('.pt'):
+            filename += '.pt'
+        
+        # Save model file
+        model_path = models_dir / filename
+        with open(model_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        return {
+            "status": "success",
+            "message": f"Model {filename} uploaded successfully",
+            "model_name": filename,
+            "path": str(model_path),
+            "size": model_path.stat().st_size
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading model: {str(e)}")
+
+
+@app.get("/models/{model_name}/download")
+async def download_model(model_name: str):
+    """Download a model weight file"""
+    try:
+        models_dir = Path("/app/models")
+        model_path = models_dir / model_name
+        
+        # Check if model exists locally
+        if model_path.exists():
+            return FileResponse(
+                path=str(model_path),
+                filename=model_name,
+                media_type="application/octet-stream"
+            )
+        
+        # Check if it's a default model (will be downloaded by Ultralytics on first use)
+        default_models = get_default_models()
+        
+        if model_name in default_models:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model {model_name} is a default model and will be automatically downloaded on first use. "
+                       f"Please use the model in detection/training to trigger download."
+            )
+        
+        raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading model: {str(e)}")
+
+
+@app.delete("/models/{model_name}")
+async def delete_model(model_name: str):
+    """Delete a custom model weight file"""
+    try:
+        models_dir = Path("/app/models")
+        model_path = models_dir / model_name
+        
+        if not model_path.exists():
+            raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
+        
+        # Prevent deletion of default models
+        default_models = [
+            "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+            "yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt",
+            "yoloe-11n.pt", "yoloe-11s.pt", "yoloe-11m.pt", "yoloe-11l.pt", "yoloe-11x.pt"
+        ]
+        
+        if model_name in default_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete default model {model_name}"
+            )
+        
+        model_path.unlink()
+        return {
+            "status": "success",
+            "message": f"Model {model_name} deleted successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting model: {str(e)}")
+
+
+@app.get("/models/{model_name}/status")
+async def get_model_status(model_name: str):
+    """Check if a model exists locally and get its status"""
+    try:
+        models_dir = Path("/app/models")
+        model_path = models_dir / model_name
+        
+        exists_locally = model_path.exists()
+        size = model_path.stat().st_size if exists_locally else None
+        
+        default_models = [
+            "yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt",
+            "yolo11n.pt", "yolo11s.pt", "yolo11m.pt", "yolo11l.pt", "yolo11x.pt",
+            "yoloe-11n.pt", "yoloe-11s.pt", "yoloe-11m.pt", "yoloe-11l.pt", "yoloe-11x.pt"
+        ]
+        
+        is_default = model_name in default_models
+        
+        return {
+            "model_name": model_name,
+            "exists_locally": exists_locally,
+            "is_default": is_default,
+            "size_bytes": size,
+            "size_mb": round(size / (1024 * 1024), 2) if size else None,
+            "path": str(model_path) if exists_locally else None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking model status: {str(e)}")
 
 
 # Training endpoints

@@ -1,0 +1,182 @@
+# YOLO Model Configuration
+# This file defines available YOLO models and their properties
+
+models:
+  # YOLOv8 Models
+  yolov8n:
+    name: "yolov8n.pt"
+    display_name: "YOLOv8 Nano"
+    family: "yolov8"
+    size: "nano"
+    description: "Fastest YOLOv8 model, best for real-time applications"
+    default: false
+    
+  yolov8s:
+    name: "yolov8s.pt"
+    display_name: "YOLOv8 Small"
+    family: "yolov8"
+    size: "small"
+    description: "Balanced speed and accuracy"
+    default: false
+    
+  yolov8m:
+    name: "yolov8m.pt"
+    display_name: "YOLOv8 Medium"
+    family: "yolov8"
+    size: "medium"
+    description: "Good balance for most use cases"
+    default: false
+    
+  yolov8l:
+    name: "yolov8l.pt"
+    display_name: "YOLOv8 Large"
+    family: "yolov8"
+    size: "large"
+    description: "Higher accuracy, slower inference"
+    default: false
+    
+  yolov8x:
+    name: "yolov8x.pt"
+    display_name: "YOLOv8 XLarge"
+    family: "yolov8"
+    size: "xlarge"
+    description: "Highest accuracy, slowest inference"
+    default: false
+
+  # YOLOv11 Models
+  yolo11n:
+    name: "yolo11n.pt"
+    display_name: "YOLOv11 Nano"
+    family: "yolo11"
+    size: "nano"
+    description: "Latest YOLO model, fastest variant"
+    default: true
+    
+  yolo11s:
+    name: "yolo11s.pt"
+    display_name: "YOLOv11 Small"
+    family: "yolo11"
+    size: "small"
+    description: "Balanced YOLOv11 model"
+    default: false
+    
+  yolo11m:
+    name: "yolo11m.pt"
+    display_name: "YOLOv11 Medium"
+    family: "yolo11"
+    size: "medium"
+    description: "Good accuracy with YOLOv11 architecture"
+    default: false
+    
+  yolo11l:
+    name: "yolo11l.pt"
+    display_name: "YOLOv11 Large"
+    family: "yolo11"
+    size: "large"
+    description: "High accuracy YOLOv11 model"
+    default: false
+    
+  yolo11x:
+    name: "yolo11x.pt"
+    display_name: "YOLOv11 XLarge"
+    family: "yolo11"
+    size: "xlarge"
+    description: "Highest accuracy YOLOv11 model"
+    default: false
+
+  # YOLOE-11 Models
+  yoloe11n:
+    name: "yoloe-11n.pt"
+    display_name: "YOLOE-11 Nano"
+    family: "yoloe-11"
+    size: "nano"
+    description: "Efficient YOLOE-11 nano model"
+    default: false
+    
+  yoloe11s:
+    name: "yoloe-11s.pt"
+    display_name: "YOLOE-11 Small"
+    family: "yoloe-11"
+    size: "small"
+    description: "Balanced YOLOE-11 model"
+    default: false
+    
+  yoloe11m:
+    name: "yoloe-11m.pt"
+    display_name: "YOLOE-11 Medium"
+    family: "yoloe-11"
+    size: "medium"
+    description: "Good accuracy YOLOE-11 model"
+    default: false
+    
+  yoloe11l:
+    name: "yoloe-11l.pt"
+    display_name: "YOLOE-11 Large"
+    family: "yoloe-11"
+    size: "large"
+    description: "High accuracy YOLOE-11 model"
+    default: false
+    
+  yoloe11x:
+    name: "yoloe-11x.pt"
+    display_name: "YOLOE-11 XLarge"
+    family: "yoloe-11"
+    size: "xlarge"
+    description: "Highest accuracy YOLOE-11 model"
+    default: false
+
+# UI Configuration
+ui:
+  # Default detection settings
+  default_confidence: 0.25
+  default_iou: 0.45
+  
+  # Visualization settings
+  visualization:
+    show_boxes_by_default: true
+    show_segmentation_by_default: true
+    box_border_width: 2
+    selected_box_border_width: 4
+    box_border_radius: 4
+    label_font_size: 12
+    label_padding: 4
+    
+  # Color scheme for classes
+  colors:
+    class_colors:
+      - rgba(255, 0, 0, 0.5)      # Red
+      - rgba(0, 255, 0, 0.5)      # Green
+      - rgba(0, 0, 255, 0.5)      # Blue
+      - rgba(255, 255, 0, 0.5)    # Yellow
+      - rgba(255, 0, 255, 0.5)    # Magenta
+      - rgba(0, 255, 255, 0.5)    # Cyan
+      - rgba(255, 165, 0, 0.5)    # Orange
+      - rgba(128, 0, 128, 0.5)    # Purple
+    
+    border_colors:
+      - rgba(255, 0, 0, 0.8)      # Red
+      - rgba(0, 255, 0, 0.8)      # Green
+      - rgba(0, 0, 255, 0.8)      # Blue
+      - rgba(255, 255, 0, 0.8)    # Yellow
+      - rgba(255, 0, 255, 0.8)    # Magenta
+      - rgba(0, 255, 255, 0.8)    # Cyan
+      - rgba(255, 165, 0, 0.8)    # Orange
+      - rgba(128, 0, 128, 0.8)    # Purple
+    
+    selected_opacity: 0.7
+    dimmed_opacity: 0.3
+    normal_opacity: 1.0
+    
+  # Drawing settings
+  drawing:
+    min_box_size: 10
+    next_id_start: 1000
+    
+  # Health check settings
+  health_check:
+    interval_ms: 1000
+    
+  # Image settings
+  image:
+    max_display_width: 800
+    max_display_height: 600

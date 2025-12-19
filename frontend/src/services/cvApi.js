@@ -44,6 +44,48 @@ export const getModelInfo = async (modelName) => {
   return response.data;
 };
 
+export const uploadModel = async (file, modelName = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (modelName) {
+    formData.append('model_name', modelName);
+  }
+  const response = await axios.post(`${API_BASE_URL}/cv/models/upload`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 300000, // 5 minutes timeout for large model files
+  });
+  return response.data;
+};
+
+export const downloadModel = async (modelName) => {
+  const response = await axios.get(`${API_BASE_URL}/cv/models/${modelName}/download`, {
+    responseType: 'blob',
+    timeout: 300000, // 5 minutes timeout for large model files
+  });
+  // Create download link
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', modelName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+  return { success: true };
+};
+
+export const deleteModel = async (modelName) => {
+  const response = await api.delete(`/cv/models/${modelName}`);
+  return response.data;
+};
+
+export const getModelStatus = async (modelName) => {
+  const response = await api.get(`/cv/models/${modelName}/status`);
+  return response.data;
+};
+
 // Training APIs
 export const trainModel = async (formData) => {
   const response = await axios.post(`${API_BASE_URL}/cv/train`, formData, {

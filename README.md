@@ -3,7 +3,7 @@
 A full-stack application with React frontend, Python backend, and support for:
 - **LLM Providers**: OpenAI, Gemini, Azure OpenAI
 - **Databases**: PostgreSQL, MongoDB, Milvus
-- **Computer Vision**: Object Detection with Ultralytics YOLO (inference and training)
+- **Computer Vision**: Object Detection with Ultralytics YOLO (YOLOv8, YOLOv11, YOLOE-11) - inference, training, and interactive annotation
 
 ## 📚 Documentation
 
@@ -15,6 +15,7 @@ A full-stack application with React frontend, Python backend, and support for:
 - **[CV_GUIDE.md](CV_GUIDE.md)** - Computer Vision features guide
 - **[DOCKER_CV_GUIDE.md](DOCKER_CV_GUIDE.md)** - Docker CV service guide
 - **[DOCKER_MIGRATION.md](DOCKER_MIGRATION.md)** - Docker architecture details
+- **[frontend/REFACTORING.md](frontend/REFACTORING.md)** - Object Detection component architecture
 
 ## Features
 
@@ -25,16 +26,33 @@ A full-stack application with React frontend, Python backend, and support for:
 - **Provider Abstraction**: Easy to add new LLM providers or databases
 
 ### Computer Vision Features
-- **Object Detection**: 
-  - Real-time object detection using Ultralytics YOLO
-  - **Interactive Visualization**: Bounding boxes with opacity overlay, color-coded by class
-  - **Health Monitoring**: Real-time CV service status indicator (1s refresh)
-  - Multiple YOLOv8 models (nano, small, medium, large, xlarge)
-- **Model Training**: Fine-tune YOLO models with custom datasets
-- **Dataset Management**: Upload datasets in ZIP format or use existing folders
-- **CUDA Support**: GPU acceleration with CUDA 12.8+ compatibility
-- **Separate Requirements**: Different dependencies for inference and training
-- **Configurable**: Adjustable confidence thresholds, IoU, and training parameters
+
+#### Object Detection
+- **Multiple YOLO Models**: 
+  - YOLOv8 (nano, small, medium, large, xlarge)
+  - YOLOv11 (nano, small, medium, large, xlarge) ⭐ NEW
+  - YOLOE-11 (nano, small, medium, large, xlarge) ⭐ NEW
+- **Interactive Annotation**:
+  - **CRUD Operations**: Create, edit, and delete detections directly in the UI
+  - **Manual Drawing**: Draw bounding boxes manually on images
+  - **Detection Selection**: Click to select and highlight detections
+  - **Visual Feedback**: Selected detections highlighted, others dimmed
+- **Segmentation Support**: Display object masks/polygons in addition to bounding boxes
+- **YOLO Format Export**: Download annotations in YOLO text format (`class_id center_x center_y width height`)
+- **Visualization**:
+  - Interactive bounding boxes with opacity overlay
+  - Color-coded by object class
+  - Confidence scores displayed
+  - Toggle boxes and masks visibility
+- **Model Management**: Upload, download, and delete custom models
+- **Health Monitoring**: Real-time CV service status indicator (1s refresh)
+- **YAML Configuration**: Easy model and UI customization via `frontend/public/config/yolo-config.yaml`
+
+#### Model Training
+- Fine-tune YOLO models with custom datasets
+- Dataset management (ZIP upload or folder paths)
+- CUDA support with GPU acceleration
+- Training project management
 
 ## Project Structure
 
@@ -58,8 +76,15 @@ llm-platform/
 │   │   │   └── schemas.py          # Pydantic models
 │   │   ├── services/
 │   │   │   ├── llm_service.py      # LLM provider abstraction
-│   │   │   └── database_service.py # Database provider abstraction
+│   │   │   ├── database_service.py # Database provider abstraction
+│   │   │   └── cv_client.py        # CV service client
 │   │   └── main.py                 # FastAPI application
+│   ├── cv-service/                 # Docker CV service
+│   │   ├── main.py
+│   │   ├── inference/
+│   │   ├── training/
+│   │   ├── download_models.py      # Model download script
+│   │   └── Dockerfile
 │   ├── uploads/
 │   │   ├── datasets/               # Training datasets
 │   │   ├── models/                 # Trained models
@@ -70,13 +95,32 @@ llm-platform/
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── components/             # React components
-│   │   │   ├── ObjectDetection.jsx
+│   │   ├── components/
+│   │   │   ├── objectDetection/    # Refactored Object Detection components
+│   │   │   │   ├── DetectionVisualization.jsx
+│   │   │   │   ├── DetectionList.jsx
+│   │   │   │   ├── DetectionEditor.jsx
+│   │   │   │   ├── SettingsPanel.jsx
+│   │   │   │   ├── ModelManagement.jsx
+│   │   │   │   └── HealthStatus.jsx
+│   │   │   ├── ObjectDetection.jsx # Main component
 │   │   │   └── ModelTraining.jsx
+│   │   ├── config/
+│   │   │   └── yoloConfig.js       # YAML config loader
+│   │   ├── hooks/
+│   │   │   ├── useDetections.js    # Detection state management
+│   │   │   └── useImageHandling.js # Image handling
+│   │   ├── utils/
+│   │   │   ├── colorManager.js     # Color management
+│   │   │   ├── yoloFormatter.js    # YOLO format conversion
+│   │   │   └── detectionManager.js # Detection CRUD operations
 │   │   ├── services/               # API clients
 │   │   │   ├── api.js
 │   │   │   └── cvApi.js
 │   │   └── App.jsx
+│   ├── public/
+│   │   └── config/
+│   │       └── yolo-config.yaml    # YOLO model configuration
 │   ├── package.json
 │   └── vite.config.js
 └── README.md
@@ -85,8 +129,6 @@ llm-platform/
 ## Quick Start
 
 ### Automated Installation (Recommended)
-
-The easiest way to get started:
 
 ```bash
 # Make installation script executable
@@ -105,7 +147,7 @@ nano backend/.env  # Add your API keys
 The installation script will:
 - ✅ Check prerequisites
 - ✅ Set up Python virtual environment
-- ✅ Install all dependencies
+- ✅ Install all dependencies (including frontend js-yaml)
 - ✅ Build Docker images
 - ✅ Create startup scripts
 - ✅ Configure environment files
@@ -127,7 +169,8 @@ cp .env.example .env
 
 # Frontend
 cd ../frontend
-npm install
+npm install  # Installs js-yaml automatically
+# YAML config is already included in public/config/
 
 # CV Service (Docker)
 docker-compose build cv-service
@@ -188,9 +231,14 @@ cd frontend
 2. Install dependencies:
 ```bash
 npm install
+# This automatically installs js-yaml for YAML config parsing
 ```
 
-3. Start the development server:
+3. **Configure YOLO Models** (Optional):
+   - Edit `public/config/yolo-config.yaml` to customize models and UI settings
+   - Default configuration includes all YOLOv8, YOLOv11, and YOLOE-11 models
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
@@ -209,40 +257,35 @@ docker-compose build cv-service
 docker-compose up -d
 ```
 
+**Model Download**: Models are automatically downloaded on first container start. Default models include:
+- YOLOv8 (nano, small, medium, large, xlarge)
+- YOLOv11 (nano, small, medium, large, xlarge)
+- YOLOE-11 (nano, small, medium, large, xlarge)
+
 See [DOCKER_CV_GUIDE.md](DOCKER_CV_GUIDE.md) for detailed CV service documentation.
 
-## Database Setup
+## Object Detection Features
 
-### PostgreSQL
+### Interactive Annotation
+1. **Upload Image**: Click "Choose Image" or drag and drop
+2. **Detect Objects**: Click "Detect Objects" to run detection
+3. **Create Detection**: Click "Add Detection" and draw bounding box
+4. **Edit Detection**: Click on detection box or in the list to edit
+5. **Delete Detection**: Click trash icon in detection list
+6. **Select Detection**: Click on detection to highlight it
+7. **Download YOLO**: Click "Download YOLO Annotation (.txt)" to export
 
-```bash
-# Using Docker
-docker run --name postgres-llm -e POSTGRES_PASSWORD=your_password -e POSTGRES_DB=llm_platform -p 5432:5432 -d postgres
+### Model Management
+- **Upload Custom Models**: Upload `.pt` files via Settings → Manage Models
+- **Download Models**: Download models for offline use
+- **Delete Models**: Remove custom models
 
-# Or install locally and create database
-createdb llm_platform
-```
-
-### MongoDB
-
-```bash
-# Using Docker
-docker run --name mongodb-llm -p 27017:27017 -d mongo
-
-# Or install locally
-mongod
-```
-
-### Milvus
-
-```bash
-# Using Docker Compose (recommended)
-# Download docker-compose.yml from Milvus documentation
-docker-compose up -d
-
-# Or using standalone Docker
-docker run -d --name milvus-standalone -p 19530:19530 -p 9091:9091 milvusdb/milvus:latest
-```
+### Configuration
+Edit `frontend/public/config/yolo-config.yaml` to:
+- Add new YOLO models
+- Change default confidence/IoU thresholds
+- Customize color schemes
+- Adjust visualization settings
 
 ## API Endpoints
 
@@ -293,7 +336,7 @@ POST /api/v1/cv/detect
 Content-Type: multipart/form-data
 Body:
   - file: (image file)
-  - model: (optional, default: yolov8n.pt)
+  - model: (optional, default: yolo11n.pt)
   - confidence: (optional, default: 0.25)
   - iou: (optional, default: 0.45)
   - save_result: (optional, default: true)
@@ -304,9 +347,28 @@ Body:
 GET /api/v1/cv/models
 ```
 
-### Get Model Info
+### Upload Model
 ```
-GET /api/v1/cv/models/{model_name}/info
+POST /api/v1/cv/models/upload
+Content-Type: multipart/form-data
+Body:
+  - file: (model .pt file)
+  - name: (optional model name)
+```
+
+### Download Model
+```
+GET /api/v1/cv/models/{model_name}/download
+```
+
+### Delete Model
+```
+DELETE /api/v1/cv/models/{model_name}
+```
+
+### Get Model Status
+```
+GET /api/v1/cv/models/{model_name}/status
 ```
 
 ### Train Model (Upload Dataset)
@@ -323,49 +385,19 @@ Body:
   - project_name: (optional)
 ```
 
-### Train Model (From Folder)
-```
-POST /api/v1/cv/train/from-folder
-Params:
-  - dataset_path: (path to dataset folder)
-  - base_model: (default: yolov8n.pt)
-  - epochs: (default: 100)
-  - batch_size: (default: 16)
-  - img_size: (default: 640)
-  - device: (cpu/cuda/mps, default: cpu)
-  - project_name: (optional)
-```
-
-### List Training Projects
-```
-GET /api/v1/cv/train/projects
-```
-
-### Get Training Project
-```
-GET /api/v1/cv/train/projects/{project_name}
-```
-
-### Resume Training
-```
-POST /api/v1/cv/train/resume
-Params:
-  - checkpoint_path: (path to checkpoint .pt file)
-  - epochs: (optional, additional epochs)
-```
-
 ## Usage
 
 1. Start the backend server
 2. Start the frontend development server
-3. Open `http://localhost:3000` in your browser
+3. Start Docker services (CV service + databases)
+4. Open `http://localhost:3000` in your browser
 
 ### LLM Features
 - Select an LLM provider and database provider from the dropdowns
 - Start chatting! Conversations can be saved to the selected database
 
 ### Computer Vision Features
-- **Object Detection**: Upload an image and detect objects using YOLO models
+- **Object Detection**: Upload an image, detect objects, create/edit detections, download YOLO annotations
 - **Model Training**: Upload a dataset (ZIP) or provide a folder path to train custom models
 - **Training Management**: View all training projects and their results
 
@@ -382,6 +414,23 @@ Params:
 1. Create a new class inheriting from `DatabaseProvider` in `backend/app/services/database_service.py`
 2. Implement required methods
 3. Register it in `DatabaseService._initialize_providers()`
+
+### Adding a New YOLO Model
+
+Simply edit `frontend/public/config/yolo-config.yaml`:
+
+```yaml
+models:
+  new_model:
+    name: "new_model.pt"
+    display_name: "New Model"
+    family: "yolo11"
+    size: "medium"
+    description: "Description here"
+    default: false
+```
+
+The model will automatically appear in the UI without code changes.
 
 ## Environment Variables
 

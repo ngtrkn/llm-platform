@@ -22,3 +22,7 @@ pyyaml==6.0.1
 
 # Image processing
 imageio==2.31.5
+
+# Download utilities
+requests>=2.31.0
+tqdm>=4.66.0

@@ -104,8 +104,11 @@ cd ..
 ```bash
 cd frontend
 
-# Install dependencies
+# Install dependencies (includes js-yaml for YAML config)
 npm install
+
+# YAML configuration is already included in public/config/yolo-config.yaml
+# You can customize it to add new models or change settings
 
 cd ..
 ```

@@ -90,6 +90,24 @@ class CVServiceClient:
         response.raise_for_status()
         return response.json()
     
+    async def delete_model(self, model_name: str) -> Dict:
+        """Delete a custom model weight file"""
+        try:
+            response = await self.client.delete(f"/models/{model_name}")
+            response.raise_for_status()
+            return response.json()
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            raise self._handle_error(e, "model deletion")
+    
+    async def get_model_status(self, model_name: str) -> Dict:
+        """Check if a model exists locally and get its status"""
+        try:
+            response = await self.client.get(f"/models/{model_name}/status")
+            response.raise_for_status()
+            return response.json()
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            raise self._handle_error(e, "model status check")
+    
     async def train(
         self,
         dataset_path: str,

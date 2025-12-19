@@ -121,6 +121,69 @@ async def get_model_info(model_name: str):
         raise HTTPException(status_code=500, detail=f"Error getting model info: {str(e)}")
 
 
+@router.post("/models/upload")
+async def upload_model(
+    file: UploadFile = File(...),
+    model_name: Optional[str] = Form(None)
+):
+    """Upload a custom model weight file (via CV Service)"""
+    try:
+        # Read file content
+        file_content = await file.read()
+        file_filename = model_name or file.filename
+        
+        # Forward to CV service
+        cv_client = get_cv_client()
+        files = {"file": (file_filename, file_content, "application/octet-stream")}
+        data = {}
+        if model_name:
+            data["model_name"] = model_name
+        
+        response = await cv_client.client.post("/models/upload", files=files, data=data)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading model: {str(e)}")
+
+
+@router.get("/models/{model_name}/download")
+async def download_model(model_name: str):
+    """Download a model weight file (via CV Service)"""
+    try:
+        cv_client = get_cv_client()
+        response = await cv_client.client.get(f"/models/{model_name}/download", timeout=300.0)
+        response.raise_for_status()
+        
+        from fastapi.responses import Response
+        return Response(
+            content=response.content,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={model_name}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading model: {str(e)}")
+
+
+@router.delete("/models/{model_name}")
+async def delete_model(model_name: str):
+    """Delete a custom model weight file (via CV Service)"""
+    try:
+        cv_client = get_cv_client()
+        return await cv_client.delete_model(model_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting model: {str(e)}")
+
+
+@router.get("/models/{model_name}/status")
+async def get_model_status(model_name: str):
+    """Check if a model exists locally and get its status (via CV Service)"""
+    try:
+        cv_client = get_cv_client()
+        return await cv_client.get_model_status(model_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking model status: {str(e)}")
+
+
 @router.post("/train", response_model=TrainingResponse)
 async def train_model(
     dataset: UploadFile = File(...),

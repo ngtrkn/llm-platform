@@ -63,12 +63,18 @@ class BBox(BaseModel):
     height: float
 
 
+class Segmentation(BaseModel):
+    polygon: List[List[float]]  # List of [x, y] points
+    mask_available: bool
+
+
 class Detection(BaseModel):
     id: int
     class_id: int
     class_name: str
     confidence: float
     bbox: BBox
+    segmentation: Optional[Segmentation] = None
 
 
 class DetectionRequest(BaseModel):

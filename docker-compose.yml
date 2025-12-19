@@ -89,6 +89,7 @@ services:
       - "8001:8001"
     volumes:
       # Mount directories for persistent storage
+      # Models directory - default models will be downloaded here on first startup
       - ./backend/uploads/models:/app/models
       - ./backend/uploads/datasets:/app/datasets
       - ./backend/uploads/results:/app/results
@@ -98,12 +99,13 @@ services:
       - cv_temp:/app/uploads/temp
     environment:
       - PYTHONUNBUFFERED=1
+      - MODELS_DIR=/app/models
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 120s  # Increased to allow time for model downloads
     # GPU support (uncomment if you have NVIDIA GPU and nvidia-docker2 installed)
     # To enable GPU support:
     # 1. Install nvidia-docker2: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html

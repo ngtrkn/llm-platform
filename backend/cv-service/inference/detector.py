@@ -1,6 +1,8 @@
 from ultralytics import YOLO
 from pathlib import Path
 from typing import List, Dict, Optional
+import cv2
+import numpy as np
 from config.cv_config import cv_config
 
 
@@ -77,10 +79,13 @@ class ObjectDetector:
             class_ids = result.boxes.cls.cpu().numpy().astype(int)
             class_names = [result.names[cls_id] for cls_id in class_ids]
             
+            # Check if segmentation masks are available
+            has_segmentation = result.masks is not None
+            
             for i, (box, conf, cls_id, cls_name) in enumerate(
                 zip(boxes, confidences, class_ids, class_names)
             ):
-                detections.append({
+                detection = {
                     "id": i,
                     "class_id": int(cls_id),
                     "class_name": cls_name,
@@ -93,7 +98,52 @@ class ObjectDetector:
                         "width": float(box[2] - box[0]),
                         "height": float(box[3] - box[1])
                     }
-                })
+                }
+                
+                # Add segmentation data if available
+                if has_segmentation and i < len(result.masks.data):
+                    mask = result.masks.data[i]
+                    # Convert mask to polygon points
+                    if mask is not None:
+                        mask_np = mask.cpu().numpy()
+                        # Resize mask to original image size if needed
+                        if result.orig_shape:
+                            orig_h, orig_w = result.orig_shape[:2]
+                            if mask_np.shape != (orig_h, orig_w):
+                                mask_np = cv2.resize(mask_np.astype(np.uint8), (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+                        
+                        # Convert mask to polygon (contour)
+                        contours, _ = cv2.findContours(mask_np.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        if contours:
+                            # Get the largest contour
+                            largest_contour = max(contours, key=cv2.contourArea)
+                            # Simplify polygon (reduce points)
+                            epsilon = 0.002 * cv2.arcLength(largest_contour, True)
+                            approx = cv2.approxPolyDP(largest_contour, epsilon, True)
+                            # Convert to list of [x, y] points
+                            polygon = [[float(point[0][0]), float(point[0][1])] for point in approx]
+                            
+                            detection["segmentation"] = {
+                                "polygon": polygon,
+                                "mask_available": True
+                            }
+                        else:
+                            detection["segmentation"] = {
+                                "polygon": [],
+                                "mask_available": False
+                            }
+                    else:
+                        detection["segmentation"] = {
+                            "polygon": [],
+                            "mask_available": False
+                        }
+                else:
+                    detection["segmentation"] = {
+                        "polygon": [],
+                        "mask_available": False
+                    }
+                
+                detections.append(detection)
         
         # Get annotated image path if saved
         annotated_path = None

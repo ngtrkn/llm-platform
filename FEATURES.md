@@ -26,16 +26,27 @@ This platform combines LLM (Large Language Model) capabilities with Computer Vis
 
 ### Object Detection
 - **Real-time Detection**: Upload images and detect objects instantly
-- **Multiple Models**: Support for YOLOv8 variants (nano, small, medium, large, xlarge)
-- **Custom Models**: Use your own trained models
-- **Configurable**: Adjustable confidence thresholds and IoU
-- **Batch Processing**: Detect objects in multiple images
+- **Multiple Models**: 
+  - YOLOv8 variants (nano, small, medium, large, xlarge)
+  - YOLOv11 variants (nano, small, medium, large, xlarge) ⭐ NEW
+  - YOLOE-11 variants (nano, small, medium, large, xlarge) ⭐ NEW
+- **Custom Models**: Upload, download, and delete your own trained models
+- **Interactive Annotation**:
+  - **Create Detections**: Draw bounding boxes manually on images
+  - **Edit Detections**: Modify class, confidence, and bounding box coordinates
+  - **Delete Detections**: Remove incorrect detections
+  - **Selection Highlighting**: Click to select and highlight detections
+- **Segmentation Support**: Display object masks/polygons in addition to bounding boxes
+- **YOLO Format Export**: Download annotations in YOLO text format (`class_id center_x center_y width height`)
+- **Configurable**: Adjustable confidence thresholds and IoU via UI or YAML config
 - **Visualization**: 
   - **Interactive Bounding Boxes**: Real-time visualization with semi-transparent overlays
   - **Color-Coded Detection**: Each object class displayed in different colors
   - **Confidence Labels**: Class name and confidence percentage displayed on each box
-  - **Toggle Visibility**: Show/hide bounding boxes for better image viewing
+  - **Toggle Visibility**: Show/hide bounding boxes and segmentation masks
   - **Download Annotated Images**: Save detection results with bounding boxes
+  - **Selection Feedback**: Selected detections highlighted, others dimmed
+- **YAML Configuration**: Easy customization via `frontend/public/config/yolo-config.yaml`
 - **Health Monitoring**: Real-time CV service health status indicator (1s refresh rate)
 
 ### Model Training

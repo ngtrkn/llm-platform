@@ -1,251 +1,241 @@
 # Installation Summary
 
-This document summarizes the installation and setup process for the AI Platform.
+Quick reference for installing and setting up the AI Platform.
 
-## 📦 What Was Created
+## Prerequisites
 
-### Installation Scripts
+- **Python 3.8+**
+- **Node.js 16+** (includes npm)
+- **Docker & Docker Compose** (for CV service)
+- **Git**
 
-1. **install.sh** - Main installation script
-   - Checks prerequisites
-   - Sets up Python virtual environment
-   - Installs dependencies
-   - Builds Docker images
-   - Creates startup scripts
-   - Configures environment files
-
-2. **start-all.sh** - Start all services
-   - Starts Docker services
-   - Starts backend server
-   - Starts frontend server
-
-3. **start-backend.sh** - Start backend only
-4. **start-frontend.sh** - Start frontend only
-
-### Documentation Files
-
-1. **README.md** - Main documentation
-   - Feature overview
-   - Project structure
-   - API endpoints
-   - Quick start
-
-2. **QUICKSTART.md** - 5-minute quick start guide
-   - Fastest way to get started
-   - Essential commands
-
-3. **INSTALLATION.md** - Complete installation guide
-   - Detailed steps
-   - Prerequisites
-   - Configuration
-   - Troubleshooting
-
-4. **SETUP_CHECKLIST.md** - Verification checklist
-   - Pre-installation checks
-   - Configuration verification
-   - Functionality tests
-
-5. **DOCUMENTATION.md** - Documentation index
-   - Links to all docs
-   - Quick reference
-   - Common tasks
-
-6. **CV_GUIDE.md** - Computer Vision guide
-   - Object detection
-   - Model training
-   - Dataset format
-
-7. **DOCKER_CV_GUIDE.md** - Docker CV service guide
-   - Docker setup
-   - Volume mounts
-   - Training strategies
-
-8. **DOCKER_MIGRATION.md** - Docker architecture details
-   - Migration information
-   - Architecture changes
-
-## 🚀 Quick Installation
+## Quick Installation
 
 ```bash
-# 1. Run installation script
+# 1. Clone repository
+git clone <repository-url>
+cd llm-platform
+
+# 2. Run automated installation
 chmod +x install.sh
 ./install.sh
 
-# 2. Configure API keys
-nano backend/.env
-# Add at least one LLM API key
+# 3. Configure API keys
+nano backend/.env  # Add at least one LLM API key
 
-# 3. Start services
+# 4. Start all services
 ./start-all.sh
 ```
 
-## ✅ Installation Checklist
+## Manual Installation Steps
 
-After running `install.sh`, verify:
-
-- [ ] Python virtual environment created (`backend/venv/`)
-- [ ] Backend dependencies installed
-- [ ] Frontend dependencies installed (`frontend/node_modules/`)
-- [ ] CV service Docker image built
-- [ ] `.env` file created (`backend/.env`)
-- [ ] Upload directories created
-- [ ] Startup scripts created (`start-*.sh`)
-
-## 📋 Configuration Checklist
-
-After installation, configure:
-
-- [ ] **LLM API Keys** (`backend/.env`):
-  - [ ] OpenAI API key, OR
-  - [ ] Gemini API key, OR
-  - [ ] Azure OpenAI credentials
-
-- [ ] **Database URLs** (optional, `backend/.env`):
-  - [ ] PostgreSQL settings
-  - [ ] MongoDB URL
-  - [ ] Milvus settings
-
-- [ ] **CV Service** (optional, `backend/cv-service/config/.env`):
-  - [ ] Training parameters
-  - [ ] Model settings
-
-## 🔍 Verification
-
-After starting services, verify:
+### 1. Backend Setup
 
 ```bash
-# Check Docker services
-docker-compose ps
-
-# Check backend
-curl http://localhost:8000/health
-
-# Check CV service
-curl http://localhost:8001/health
-
-# Check frontend
-open http://localhost:3000
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with API keys
+mkdir -p uploads/{models,datasets,results}
 ```
 
-## 📚 Documentation Flow
-
-**New Users:**
-1. Start with **QUICKSTART.md**
-2. Follow **INSTALLATION.md** if needed
-3. Use **SETUP_CHECKLIST.md** to verify
-
-**Developers:**
-1. Read **README.md** for overview
-2. Check **DOCUMENTATION.md** for index
-3. Read feature-specific guides as needed
-
-**CV Features:**
-1. Read **CV_GUIDE.md** for usage
-2. Read **DOCKER_CV_GUIDE.md** for Docker setup
-3. Check **DOCKER_MIGRATION.md** for architecture
-
-## 🛠️ Common Commands
+### 2. Frontend Setup
 
 ```bash
-# Installation
-./install.sh
+cd frontend
+npm install  # Installs js-yaml automatically
+# YAML config already included in public/config/yolo-config.yaml
+```
+
+**Note**: The frontend includes:
+- `js-yaml` dependency (for YAML config parsing)
+- Default YAML config at `public/config/yolo-config.yaml`
+- All refactored components
+
+### 3. CV Service Setup
+
+```bash
+# Build Docker image
+docker-compose build cv-service
 
 # Start services
-./start-all.sh
-
-# Check status
-docker-compose ps
-curl http://localhost:8000/health
-
-# View logs
-docker-compose logs -f cv-service
-
-# Stop services
-docker-compose down
+docker-compose up -d
 ```
 
-## 📝 Next Steps
+**Models**: Automatically downloaded on first container start:
+- YOLOv8 (nano, small, medium, large, xlarge)
+- YOLOv11 (nano, small, medium, large, xlarge) ⭐ NEW
+- YOLOE-11 (nano, small, medium, large, xlarge) ⭐ NEW
 
-After installation:
+## Configuration
 
-1. **Configure API Keys** - Edit `backend/.env`
-2. **Start Services** - Run `./start-all.sh`
-3. **Test Features**:
-   - LLM Chat
-   - Object Detection
-   - Model Training
-4. **Read Documentation** - Explore feature guides
-5. **Customize** - Create training strategies, add models
+### Backend (.env)
 
-## 🆘 Getting Help
+**Minimum required:**
+```env
+# At least one LLM provider
+OPENAI_API_KEY=your_key_here
+# OR
+GEMINI_API_KEY=your_key_here
+# OR
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=your_key_here
 
-If you encounter issues:
+# CV Service URL
+CV_SERVICE_URL=http://localhost:8001
+```
 
-1. Check **INSTALLATION.md** troubleshooting section
-2. Review **SETUP_CHECKLIST.md**
-3. Check logs: `docker-compose logs`
-4. Verify prerequisites are installed
-5. Review API docs: http://localhost:8000/docs
+### Frontend (YAML Config)
 
-## 📦 What Gets Installed
+**File**: `frontend/public/config/yolo-config.yaml`
 
-### Backend
-- FastAPI framework
-- LLM provider clients (OpenAI, Gemini, Azure)
-- Database connectors (PostgreSQL, MongoDB, Milvus)
-- HTTP client for CV service
+Customize:
+- Add new YOLO models
+- Change default confidence/IoU
+- Adjust color schemes
+- Modify visualization settings
 
-### Frontend
-- React framework
-- Vite build tool
-- Tailwind CSS
-- API clients
+**No code changes needed** - just edit YAML!
 
-### CV Service (Docker)
-- Ultralytics YOLO
-- PyTorch
-- OpenCV
-- Training tools
+## Starting Services
 
-### Databases (Docker)
-- PostgreSQL
-- MongoDB
-- Milvus (with etcd and MinIO)
-
-## 🎯 Success Criteria
-
-Installation is successful when:
-
-- ✅ All services start without errors
-- ✅ Backend responds at http://localhost:8000
-- ✅ Frontend loads at http://localhost:3000
-- ✅ CV service responds at http://localhost:8001
-- ✅ Can send LLM chat messages
-- ✅ Can perform object detection
-- ✅ Can start model training
-
-## 🔄 Updates
-
-To update the platform:
+### Option 1: Start All (Recommended)
 
 ```bash
-# Update backend
-cd backend
-source venv/bin/activate
-pip install -r requirements.txt --upgrade
-
-# Update frontend
-cd frontend
-npm update
-
-# Rebuild CV service
-docker-compose build cv-service --no-cache
+./start-all.sh
 ```
 
-## 📞 Support
+### Option 2: Manual Start
 
-For detailed help:
+**Terminal 1 - Backend:**
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+**Terminal 3 - Docker:**
+```bash
+docker-compose up -d
+```
+
+## Verification
+
+```bash
+# Backend
+curl http://localhost:8000/health
+
+# Frontend
+open http://localhost:3000
+
+# CV Service
+curl http://localhost:8001/health
+curl http://localhost:8001/models
+
+# Docker
+docker-compose ps
+```
+
+## New Features (Latest Version)
+
+### Object Detection
+- ✅ YOLOv11 and YOLOE-11 support
+- ✅ Interactive CRUD operations (create, edit, delete)
+- ✅ Manual bounding box drawing
+- ✅ Detection selection and highlighting
+- ✅ YOLO format annotation download
+- ✅ Segmentation mask visualization
+- ✅ Model management (upload/download/delete)
+- ✅ YAML configuration system
+
+### Code Architecture
+- ✅ Refactored into modular components
+- ✅ Separated logic from UI
+- ✅ Custom hooks for state management
+- ✅ Utility classes for business logic
+- ✅ YAML-based configuration
+
+## Troubleshooting
+
+### Frontend Issues
+
+**YAML config not loading:**
+- Check browser console
+- Verify `public/config/yolo-config.yaml` exists
+- Component falls back to defaults
+
+**Models not appearing:**
+- Check CV service is running: `docker-compose ps`
+- Check logs: `docker-compose logs cv-service`
+- Verify models downloaded: `docker exec -it llm-platform-cv-service ls /app/models`
+
+### Backend Issues
+
+**CV service connection:**
+- Verify `CV_SERVICE_URL` in `.env`
+- Check Docker container: `docker-compose ps cv-service`
+- Test connectivity: `curl http://localhost:8001/health`
+
+### Docker Issues
+
+**Models not downloading:**
+- Check logs: `docker-compose logs cv-service`
+- Rebuild: `docker-compose build cv-service --no-cache`
+- Check volume mount: `docker-compose config`
+
+## File Structure
+
+```
+llm-platform/
+├── backend/
+│   ├── app/                    # Backend application
+│   ├── uploads/                # Upload directories
+│   └── .env                    # Backend configuration
+├── frontend/
+│   ├── src/
+│   │   ├── components/         # React components
+│   │   │   └── objectDetection/ # Refactored components
+│   │   ├── config/             # Config loaders
+│   │   ├── hooks/              # Custom hooks
+│   │   └── utils/              # Utility classes
+│   └── public/
+│       └── config/
+│           └── yolo-config.yaml # YOLO configuration
+├── docker-compose.yml          # Docker services
+└── install.sh                  # Installation script
+```
+
+## Next Steps
+
+1. **Configure API Keys**: Edit `backend/.env`
+2. **Customize Models**: Edit `frontend/public/config/yolo-config.yaml`
+3. **Start Services**: Run `./start-all.sh`
+4. **Test Features**: 
+   - Try object detection
+   - Create/edit detections
+   - Download YOLO annotations
+   - Upload custom models
+
+## Documentation
+
+- **[README.md](README.md)** - Main documentation
+- **[INSTALLATION.md](INSTALLATION.md)** - Detailed installation guide
+- **[CV_GUIDE.md](CV_GUIDE.md)** - Computer Vision guide
+- **[frontend/REFACTORING.md](frontend/REFACTORING.md)** - Component architecture
+- **[frontend/README.md](frontend/README.md)** - Frontend documentation
+
+## Support
+
+- Check logs: `docker-compose logs`
 - Review documentation files
-- Check API documentation
-- Review logs for errors
-- Verify configuration
+- Check API docs: http://localhost:8000/docs
+- Verify all services are running
