@@ -42,6 +42,16 @@ Thumbs.db
 # Logs
 *.log
 
-
-*temp/
+# Uploads and generated files (should not be in git)
+backend/uploads/results/
+backend/uploads/temp/
+backend/uploads/models/*.pt
+backend/uploads/datasets/
 *.pt
+
+# But allow empty directories
+!backend/uploads/.gitkeep
+!backend/uploads/results/.gitkeep
+!backend/uploads/temp/.gitkeep
+!backend/uploads/models/.gitkeep
+!backend/uploads/datasets/.gitkeep
